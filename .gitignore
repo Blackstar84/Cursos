@@ -1,4 +1,9 @@
-uploads/
+# Ignorar todo el contenido dentro de la carpeta uploads
+uploads/*
+
+# ¡No ignorar el archivo .gitkeep!
+!uploads/.gitkeep
+
 
 # ETC
 TODO
