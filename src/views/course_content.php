@@ -1,6 +1,5 @@
 <?php
 
-
 if (!isset($_SESSION['user_id'])) {
     header("Location: /courses/public/index.php");
     exit();
@@ -34,36 +33,44 @@ $sections = $courseController->getSections($course_id);
             <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createSectionModal">
                 Add Section
             </button>
-            <?php foreach ($sections as $section): ?>
-                <div class="card card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title"><?php echo htmlspecialchars($section['title']); ?></h3>
+            <div id="accordion">
+                <?php foreach ($sections as $index => $section): ?>
+                    <div class="card card-primary">
+                        <div class="card-header" id="heading<?php echo $index; ?>">
+                            <h5 class="mb-0">
+                                <button class="btn btn-link" data-toggle="collapse" data-target="#collapse<?php echo $index; ?>" aria-expanded="false" aria-controls="collapse<?php echo $index; ?>">
+                                    <?php echo htmlspecialchars($section['title']); ?>
+                                </button>
+                            </h5>
+                        </div>
+                        <div id="collapse<?php echo $index; ?>" class="collapse" aria-labelledby="heading<?php echo $index; ?>" data-parent="#accordion" data-section-id="section<?php echo $index; ?>">
+                            <div class="card-body">
+                                <?php
+                                $lessons = $courseController->getLessonsBySection($section['id']);
+                                if (empty($lessons)):
+                                ?>
+                                    <p>No lessons available for this section.</p>
+                                <?php else: ?>
+                                    <ul class="list-group">
+                                        <?php foreach ($lessons as $lesson): ?>
+                                            <li class="list-group-item">
+                                                <h4><?php echo htmlspecialchars($lesson['title']); ?></h4>
+                                                <video width="320" height="240" controls class="mt-2" data-lesson-id="<?php echo $lesson['id']; ?>" data-section-id="section<?php echo $index; ?>">
+                                                    <source src="<?php echo htmlspecialchars($lesson['video_path']); ?>" type="video/mp4">
+                                                    Your browser does not support the video tag.
+                                                </video>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+                                <button type="button" class="btn btn-primary mt-3" data-toggle="modal" data-target="#createLessonModal" data-section-id="<?php echo $section['id']; ?>">
+                                    Add Lesson
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <?php
-                        $lessons = $courseController->getLessonsBySection($section['id']);
-                        if (empty($lessons)):
-                        ?>
-                            <p>No lessons available for this section.</p>
-                        <?php else: ?>
-                            <ul class="list-group">
-                                <?php foreach ($lessons as $lesson): ?>
-                                    <li class="list-group-item">
-                                        <h4><?php echo htmlspecialchars($lesson['title']); ?></h4>
-                                        <video width="320" height="240" controls class="mt-2" data-lesson-id="<?php echo $lesson['id']; ?>">
-                                            <source src="<?php echo htmlspecialchars($lesson['video_path']); ?>" type="video/mp4">
-                                            Your browser does not support the video tag.
-                                        </video>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                        <button type="button" class="btn btn-primary mt-3" data-toggle="modal" data-target="#createLessonModal" data-section-id="<?php echo $section['id']; ?>">
-                            Add Lesson
-                        </button>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
     </section>
 </div>
@@ -129,18 +136,32 @@ $sections = $courseController->getSections($course_id);
 <script>
 document.addEventListener('DOMContentLoaded', (event) => {
     const videos = document.querySelectorAll('video');
+    const userId = <?php echo $_SESSION['user_id']; ?>;
+    const sectionProgress = new Map(); // To track progress by section
+    const fetchPromises = [];
+
     videos.forEach(video => {
         const lessonId = video.getAttribute('data-lesson-id');
-        const userId = <?php echo $_SESSION['user_id']; ?>;
+        const sectionId = video.getAttribute('data-section-id');
+
+        if (!sectionProgress.has(sectionId)) {
+            sectionProgress.set(sectionId, true); // Assume section is completed
+        }
 
         // Fetch progress from the server
-        fetch(`/courses/public/index.php?view=get_progress&lesson_id=${lessonId}&user_id=${userId}`)
+        const fetchPromise = fetch(`/courses/public/index.php?view=get_progress&lesson_id=${lessonId}&user_id=${userId}`)
             .then(response => response.json())
             .then(data => {
+                console.log(`Progress for lesson ${lessonId}:`, data); // Debugging line
                 if (data && data.progress) {
                     video.currentTime = data.progress;
                 }
+                if (data && !data.completed) {
+                    sectionProgress.set(sectionId, false); // Mark section as not completed
+                }
             });
+
+        fetchPromises.push(fetchPromise);
 
         video.addEventListener('pause', () => {
             const progress = video.currentTime;
@@ -167,6 +188,21 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .catch(error => {
                 console.error('Error saving progress:', error);
             });
+        });
+    });
+
+    // Ensure sections are opened/closed after all fetch requests are completed
+    Promise.all(fetchPromises).then(() => {
+        sectionProgress.forEach((isCompleted, sectionId) => {
+            const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`);
+            console.log('Final Section State - Section ID:', sectionId, 'isCompleted:', isCompleted); // Debugging line
+            if (sectionElement) {
+                if (!isCompleted) {
+                    sectionElement.classList.add('show');
+                } else {
+                    sectionElement.classList.remove('show');
+                }
+            }
         });
     });
 

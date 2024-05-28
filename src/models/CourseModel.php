@@ -111,7 +111,7 @@ class CourseModel {
     }
     
     public function getVideoProgress($user_id, $lesson_id) {
-        $query = "SELECT progress FROM video_progress WHERE user_id = :user_id AND lesson_id = :lesson_id";
+        $query = "SELECT progress, completed FROM video_progress WHERE user_id = :user_id AND lesson_id = :lesson_id";
         $stmt = $this->db->prepare($query);
         $stmt->bindParam(':user_id', $user_id);
         $stmt->bindParam(':lesson_id', $lesson_id);

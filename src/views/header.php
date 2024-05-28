@@ -18,7 +18,7 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a href="/courses/public/index.php" class="nav-link">Home</a>
+                <a href="/courses/public/index.php?view=courses" class="nav-link">Home</a>
             </li>
         <?php if (isset($_SESSION['user_id'])): ?>
             <li class="nav-item d-none d-sm-inline-block">
